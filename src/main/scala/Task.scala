@@ -7,8 +7,7 @@ import scala.util.Sorting
 //TODO visualization
 
 case class Task(val title: String,
-                val parents: List[String],
-                //val children: List[String] = List(), 
+                val parents: List[String] = List(),
                 val description: String = "",
                 val importance: Int = 0,
                 val context: String = ""

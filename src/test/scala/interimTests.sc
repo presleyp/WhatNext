@@ -2,7 +2,7 @@ package test.scala
 import whatnext._
 
 //JUnit and ScalaTest aren't working yet so I'll check things here
-
+ 
 object interimTests {
   val t1 = new Task("go camping", List())         //> t1  : whatnext.Task = Task(go camping,List(),,0,)
   val t2 = new Task("wash clothes", List("go camping"))
@@ -13,15 +13,13 @@ object interimTests {
                                                   //> t4  : whatnext.Task = Task(walk dog,List(go camping),,0,)
   val t5 = new Task("read", List())               //> t5  : whatnext.Task = Task(read,List(),,0,)
   
-  val p = new Project()                           //> p  : whatnext.Project = whatnext.Project@165973ea
+  val p = new Project()                           //> p  : whatnext.Project = whatnext.Project@b6e39f
   //Map()
   p.tasks                                         //> res0: Map[String,whatnext.Task] = Map()
   // Set()
   p.whatNext                                      //> res1: Set[String] = Set()
   
-  //TODO what should the behavior of checkOff be here?
-  
-  val p1 = p + t1                                 //> p1  : whatnext.Project = whatnext.Project@58f39b3a
+  val p1 = p + t1                                 //> p1  : whatnext.Project = whatnext.Project@49ff0dde
   //Map("go camping", t1)
   p1.tasks                                        //> res2: Map[String,whatnext.Task] = Map(go camping -> Task(go camping,List(),,
                                                   //| 0,))
@@ -29,27 +27,49 @@ object interimTests {
   p1.whatNext                                     //> res3: Set[String] = Set(go camping)
   
   
-  val p2 = p1 + t2                                //> p2  : whatnext.Project = whatnext.Project@7e78fc6
+  val p2 = p1 + t2                                //> p2  : whatnext.Project = whatnext.Project@199836ed
   //Set("go camping")
   p2.whatNext                                     //> res4: Set[String] = Set(go camping)
   
-  val p3 = p2.checkOff("go camping")              //> p3  : whatnext.Project = whatnext.Project@68da4b71
+  val p3 = p2.checkOff("go camping")              //> p3  : whatnext.Project = whatnext.Project@664883c
   //Set("wash clothes")
   p3.whatNext                                     //> res5: Set[String] = Set(wash clothes)
   
-  // TODO if I add t4 here it will think it's not ready even
-  // though it is.
+  //ParentException
+  val p4 = try {p3 + t4}
+  catch {
+    case ParentException(msg) => msg
+  }                                               //> p4  : Object = That task's prerequisites aren't in the project. Add them and
+                                                  //|  then try again.
   
-  val p4 = p3 + t5                                //> p4  : whatnext.Project = whatnext.Project@538f1d7e
+  val p5 = p3 + t5                                //> p5  : whatnext.Project = whatnext.Project@322c1e6b
   //Set("wash clothes", "read")
-  p4.whatNext                                     //> res6: Set[String] = Set(wash clothes, read)
+  p5.whatNext                                     //> res6: Set[String] = Set(wash clothes, read)
  
-  val p5 = p4.checkOff("wash clothes").checkOff("read")
-                                                  //> p5  : whatnext.Project = whatnext.Project@28bb0d0d
-  //Set() FIXME should maybe return "all done!"
-  p5.whatNext                                     //> res7: Set[String] = Set()
+  val p6 = p5.checkOff("wash clothes").checkOff("read")
+                                                  //> p6  : whatnext.Project = whatnext.Project@5e785d65
+  //Set() should maybe return "all done!", but that's a view issue
+  p6.whatNext                                     //> res7: Set[String] = Set()
   
-  //TODO should warn user
-  val p6 = p5.checkOff("phantom task")            //> p6  : whatnext.Project = whatnext.Project@1055e55f
+  //TaskNotFoundException
+  val p7 = try {p6.checkOff("phantom task")}
+  catch {
+    case TaskNotFoundException(msg) => msg
+  }                                               //> p7  : Object = That task isn't in this project.
+  
+  //ParentException
+  val a = new Task("a", List("b"))                //> a  : whatnext.Task = Task(a,List(b),,0,)
+  val b = new Task("b", List("a"))                //> b  : whatnext.Task = Task(b,List(a),,0,)
+  val bad = try {new Project(Map(a.title -> a, b.title -> b))}
+  catch {
+    case ParentException(msg) => msg
+  }                                               //> bad  : Object = Something is wrong with the following task(s): a, b.
+                                                  //|               Either their parents aren't in the project or they are prereq
+                                                  //| uisites to tasks that are prerequisites
+                                                  //|               to them, so that they could never be ready to do.
+  val c = new Task("c", List())                   //> c  : whatnext.Task = Task(c,List(),,0,)
+  val d = new Task("d", List("c"))                //> d  : whatnext.Task = Task(d,List(c),,0,)
+  val good = new Project(Map(d.title -> d, c.title -> c))
+                                                  //> good  : whatnext.Project = whatnext.Project@ed42d08
                                                   
 }

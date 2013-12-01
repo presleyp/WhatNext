@@ -1,20 +1,50 @@
 package whatnext
 
-//TODO handle edge cases (see comments)
+//TODO main (think about interface)
 //TODO proper tests
+//TODO change constructor so you give a list of tasks, not a map. also avoid unnecessary cycle checking.
 //TODO improve whatNext interface
-//TODO uncomment edit when implemented in Task
+//TODO uncomment edit when implemented in Task and add error checking for cycles
+//TODO make task ready or not based on time, not just parents
 //TODO visualization
 
-class Project(val tasks: Map[String, Task] = Map()) {
-    
+case class ParentException(message: String) extends Exception(message)
+case class TaskNotFoundException(message: String) extends Exception(message)
+
+class Project(initialTasks: Map[String, Task] = Map()) {
+    val tasks = fillTasks(initialTasks, Map())
+  
+    def fillTasks(inputMap: Map[String, Task], resultMap: Map[String, Task]): Map[String, Task] = {
+      val (topLevel, rest) = inputMap partition {
+        case (name, task) => task.parents.forall(parent => resultMap contains parent)
+      }
+      if (rest.isEmpty){
+        topLevel ++ resultMap
+      }
+      else {
+        if (topLevel.isEmpty){
+          throw ParentException(s"""Something is wrong with the following task(s): ${rest.keys.mkString(", ")}.
+              Either their parents aren't in the project or they are prerequisites to tasks that are prerequisites
+              to them, so that they could never be ready to do.""")
+        }
+        else {
+          fillTasks(inputMap -- topLevel.map({case (name, task) => name}), resultMap ++ topLevel)
+        }
+      }
+    }
+
   def get(key: String): Option[Task] = {
     if (tasks contains key) Some(tasks(key))
     else None
   }
   
-  def + (task: Task): Project = { // warn user if task's parents aren't in tasks
-    new Project(tasks + ((task.title, task)))
+  def + (task: Task): Project = { // error if task's parents aren't in tasks
+    if (task.parents.forall(parent => tasks contains parent)){
+      new Project(tasks + ((task.title, task)))
+    } else {
+      throw ParentException("That task's prerequisites aren't in the project. Add them and then try again.")
+    }
+
   }
   
   def whatNext(): Set[String] = { // tell user if there aren't any more tasks
@@ -23,7 +53,7 @@ class Project(val tasks: Map[String, Task] = Map()) {
   }
   
 /*  
-  def edit(task: Task, change: Map[String, Any]): Project = {
+  def edit(task: Task, change: Map[String, Any]): Project = { // search for cycles
     val newTask = task.edit(change)
     new Project(tasks - task.title + ((newTask.title, newTask)))
   }
@@ -38,7 +68,8 @@ class Project(val tasks: Map[String, Task] = Map()) {
   }
 */    
   def checkOff(title: String): Project = { // warn user if they try to check off a task that isn't here
-    //remove this task
+    if (tasks contains title) {
+          //remove this task
     val checkedOff = tasks - title
     
     //remove old children from tasks
@@ -50,7 +81,9 @@ class Project(val tasks: Map[String, Task] = Map()) {
     val newTasks = tasksMinusChildren ++ newChildren
     
     new Project(newTasks)
-
+    } else {
+      throw TaskNotFoundException("That task isn't in this project.")
+    }
   }
   
   def showAll(): Set[Task] = {
